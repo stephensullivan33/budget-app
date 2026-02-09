@@ -6,19 +6,105 @@
 <title>Budget</title>
 
 <style>
-body{margin:0;font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#121212;color:#fff}
-.container{padding:16px;max-width:420px;margin:auto}
-h1,h2,h3{text-align:center;margin:10px 0}
-button,input,select{width:100%;padding:10px;margin-top:6px;border-radius:6px;border:none;font-size:16px}
-button{background:#2ecc71;color:#000;font-weight:bold}
-input,select{background:#1e1e1e;color:#fff}
-.card{background:#1e1e1e;padding:10px;border-radius:6px;margin-top:6px}
-.row{display:flex;justify-content:space-between;align-items:center}
-.bill{color:#e74c3c}
-.income{color:#2ecc71}
-.alert{background:#1e1e1e;border-left:4px solid #f1c40f;padding:8px;margin-top:8px}
-.small{font-size:12px;opacity:.8}
-hr{border:none;border-top:1px solid #333;margin:16px 0}
+body {
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+  background:#121212;
+  color:#fff;
+}
+.container {
+  padding:16px;
+  max-width:420px;
+  margin:auto;
+}
+h1 {
+  text-align:center;
+  margin:8px 0 16px;
+  font-weight:600;
+}
+.snapshot {
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:8px;
+}
+.card {
+  background:#1e1e1e;
+  border-radius:8px;
+  padding:10px;
+}
+.card small {
+  opacity:.6;
+  font-size:12px;
+}
+.card strong {
+  font-size:20px;
+  display:block;
+  margin-top:4px;
+}
+.available strong { color:#2ecc71 }
+.spent strong { color:#e74c3c }
+.remaining strong { color:#f1c40f }
+
+.progress {
+  background:#333;
+  height:6px;
+  border-radius:3px;
+  overflow:hidden;
+  margin-top:10px;
+}
+.progress div {
+  height:100%;
+  background:#e74c3c;
+}
+
+.section {
+  margin-top:20px;
+}
+.section h2 {
+  font-size:14px;
+  font-weight:600;
+  opacity:.7;
+  margin-bottom:8px;
+}
+
+input, select, button {
+  width:100%;
+  padding:12px;
+  border-radius:8px;
+  border:none;
+  font-size:16px;
+}
+input, select {
+  background:#1e1e1e;
+  color:#fff;
+  margin-bottom:8px;
+}
+button {
+  background:#2ecc71;
+  color:#000;
+  font-weight:700;
+}
+
+.txn {
+  display:flex;
+  justify-content:space-between;
+  padding:8px 0;
+  border-bottom:1px solid #222;
+  font-size:14px;
+}
+.txn small {
+  opacity:.6;
+}
+
+.manage {
+  margin-top:24px;
+  text-align:center;
+}
+.manage button {
+  background:#1e1e1e;
+  color:#fff;
+  font-weight:500;
+}
 </style>
 </head>
 
@@ -27,122 +113,105 @@ hr{border:none;border-top:1px solid #333;margin:16px 0}
 
 <h1>Dashboard</h1>
 
-<div id="dailyAlert"></div>
+<!-- SNAPSHOT -->
+<div class="snapshot">
+  <div class="card available">
+    <small>Available</small>
+    <strong id="available">$0</strong>
+  </div>
+  <div class="card spent">
+    <small>Spent today</small>
+    <strong id="spentToday">$0</strong>
+  </div>
+  <div class="card remaining">
+    <small>Month remaining</small>
+    <strong id="monthRemaining">$0</strong>
+  </div>
+</div>
 
-<h2>Quick Expense</h2>
-<select id="qCat">
-  <option>Groceries</option>
-  <option>Gas</option>
-  <option>Misc</option>
-</select>
-<input id="qAmt" type="number" placeholder="Amount">
-<button onclick="quickExpense()">Add</button>
+<div class="progress">
+  <div id="progressBar"></div>
+</div>
 
-<hr>
+<!-- ADD EXPENSE -->
+<div class="section">
+  <h2>Add expense</h2>
+  <select id="category">
+    <option>Groceries</option>
+    <option>Gas</option>
+    <option>Dining</option>
+    <option>Subscriptions</option>
+    <option>Misc</option>
+  </select>
+  <input id="amount" type="number" placeholder="Amount">
+  <input id="note" placeholder="Note (optional)">
+  <button onclick="addExpense()">Add Expense</button>
+</div>
 
-<h2>Accounts</h2>
-<input id="accName" placeholder="Account name">
-<input id="accBal" type="number" placeholder="Starting balance">
-<button onclick="addAccount()">Add Account</button>
-<div id="accounts"></div>
+<!-- RECENT -->
+<div class="section">
+  <h2>Recent activity</h2>
+  <div id="recent"></div>
+</div>
 
-<hr>
-
-<h2>Category Rules</h2>
-<input id="ruleKey" placeholder="Keyword (e.g. Walmart)">
-<select id="ruleCat">
-  <option>Groceries</option>
-  <option>Gas</option>
-  <option>Subscriptions</option>
-  <option>Misc</option>
-</select>
-<button onclick="addRule()">Add Rule</button>
-<div id="rules"></div>
-
-<hr>
-
-<h2>Import Bank CSV</h2>
-<input type="file" accept=".csv" onchange="importCSV(this.files[0])">
+<!-- MANAGE -->
+<div class="manage">
+  <button onclick="alert('Manage screen comes next')">Manage</button>
+</div>
 
 </div>
 
 <script>
-const today=new Date().toISOString().slice(0,10)
+const today = new Date().toISOString().slice(0,10)
 
-let expenses=JSON.parse(localStorage.getItem('expenses'))||[]
-let accounts=JSON.parse(localStorage.getItem('accounts'))||[]
-let rules=JSON.parse(localStorage.getItem('rules'))||[]
+let expenses = JSON.parse(localStorage.getItem('expenses')) || []
+let accounts = JSON.parse(localStorage.getItem('accounts')) || [{name:'Checking',balance:0}]
 
-function quickExpense(){
-  if(!qAmt.value) return
-  expenses.push({amount:+qAmt.value,category:qCat.value,date:today})
+function addExpense(){
+  if(!amount.value) return
+  expenses.unshift({
+    category:category.value,
+    amount:+amount.value,
+    note:note.value,
+    date:today
+  })
   localStorage.setItem('expenses',JSON.stringify(expenses))
-  qAmt.value=''
-  localStorage.setItem('lastEntry',today)
+  localStorage.setItem('lastCategory',category.value)
+  amount.value=''
+  note.value=''
   render()
-}
-
-function addAccount(){
-  if(!accName.value||!accBal.value) return
-  accounts.push({name:accName.value,balance:+accBal.value})
-  localStorage.setItem('accounts',JSON.stringify(accounts))
-  accName.value=accBal.value=''
-  render()
-}
-
-function addRule(){
-  if(!ruleKey.value) return
-  rules.push({key:ruleKey.value.toLowerCase(),cat:ruleCat.value})
-  localStorage.setItem('rules',JSON.stringify(rules))
-  ruleKey.value=''
-  render()
-}
-
-function importCSV(file){
-  const reader=new FileReader()
-  reader.onload=e=>{
-    const lines=e.target.result.split('\n')
-    lines.slice(1).forEach(l=>{
-      const cols=l.split(',')
-      if(cols.length<3) return
-      const desc=cols[1].toLowerCase()
-      const amt=Math.abs(Number(cols[2]))
-      let cat='Misc'
-      rules.forEach(r=>{if(desc.includes(r.key)) cat=r.cat})
-      expenses.push({amount:amt,category:cat,date:cols[0]})
-    })
-    localStorage.setItem('expenses',JSON.stringify(expenses))
-    render()
-  }
-  reader.readAsText(file)
 }
 
 function render(){
-  // Daily reminder
-  const last=localStorage.getItem('lastEntry')
-  dailyAlert.innerHTML= last!==today
-    ? `<div class="alert">You haven’t logged spending today</div>`:'';
+  // Available
+  const totalAccounts = accounts.reduce((t,a)=>t+a.balance,0)
+  const totalSpent = expenses.reduce((t,e)=>t+e.amount,0)
+  available.innerText = `$${(totalAccounts-totalSpent).toFixed(2)}`
 
-  // Accounts
-  accountsDiv.innerHTML=''
-  accounts.forEach(a=>{
-    const spent=expenses.reduce((t,e)=>t+e.amount,0)
-    accountsDiv.innerHTML+=`
-      <div class="card row">
-        <span>${a.name}</span>
-        <strong>$${(a.balance-spent).toFixed(2)}</strong>
+  // Spent today
+  const todaySpent = expenses.filter(e=>e.date===today)
+    .reduce((t,e)=>t+e.amount,0)
+  spentToday.innerText = `$${todaySpent.toFixed(2)}`
+
+  // Month remaining
+  const monthSpent = expenses.reduce((t,e)=>t+e.amount,0)
+  monthRemaining.innerText = `$${(totalAccounts-monthSpent).toFixed(2)}`
+  progressBar.style.width = totalAccounts
+    ? `${(monthSpent/totalAccounts)*100}%` : '0%'
+
+  // Recent
+  recent.innerHTML=''
+  expenses.slice(0,5).forEach(e=>{
+    recent.innerHTML += `
+      <div class="txn">
+        <div>${e.category}<br><small>${e.note||''}</small></div>
+        <strong>$${e.amount.toFixed(2)}</strong>
       </div>`
   })
 
-  // Rules
-  rulesDiv.innerHTML=''
-  rules.forEach(r=>{
-    rulesDiv.innerHTML+=`<div class="small">${r.key} → ${r.cat}</div>`
-  })
+  // Restore last category
+  category.value = localStorage.getItem('lastCategory') || category.value
 }
-
-const accountsDiv=document.getElementById('accounts')
-const rulesDiv=document.getElementById('rules')
 
 render()
 </script>
