@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Budget App</title>
+<style>
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #121212;
+  color: #ffffff;
+}
+.container {
+  padding: 20px;
+  max-width: 420px;
+  margin: auto;
+}
+h1 {
+  text-align: center;
+}
+input, button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 8px;
+  border-radius: 6px;
+  border: none;
+  font-size: 16px;
+}
+input {
+  background: #1e1e1e;
+  color: #fff;
+}
+button {
+  background: #2ecc71;
+  color: #000;
+  font-weight: bold;
+}
+.section {
+  margin-top: 20px;
+}
+.item {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+.total {
+  font-size: 18px;
+  margin-top: 10px;
+}
+.remaining {
+  font-size: 22px;
+  margin-top: 20px;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Monthly Budget</h1>
+
+<div class="section">
+<label>Monthly Income</label>
+<input type="number" id="income" placeholder="0">
+</div>
+
+<div class="section">
+<label>Add Expense</label>
+<input type="text" id="name" placeholder="Category">
+<input type="number" id="amount" placeholder="Amount">
+<button onclick="addExpense()">Add</button>
+</div>
+
+<div class="section" id="expenses"></div>
+
+<div class="remaining" id="remaining"></div>
+</div>
+
+<script>
+let expenses = JSON.parse(localStorage.getItem('expenses')) || [];
+
+function addExpense() {
+  const name = document.getElementById('name').value;
+  const amount = Number(document.getElementById('amount').value);
+  if (!name || !amount) return;
+  expenses.push({ name, amount });
+  localStorage.setItem('expenses', JSON.stringify(expenses));
+  document.getElementById('name').value = '';
+  document.getElementById('amount').value = '';
+  render();
+}
+
+function render() {
+  const income = Number(document.getElementById('income').value);
+  localStorage.setItem('income', income);
+
+  const list = document.getElementById('expenses');
+  list.innerHTML = '';
+  let total = 0;
+
+  expenses.forEach(e => {
+    total += e.amount;
+    list.innerHTML += `<div class="item"><span>${e.name}</span><span>$${e.amount}</span></div>`;
+  });
+
+  document.getElementById('remaining').innerText =
+    `Remaining: $${income - total}`;
+}
+
+document.getElementById('income').value =
+  localStorage.getItem('income') || 0;
+
+render();
+</script>
+</body>
+</html>
