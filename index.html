@@ -6,152 +6,145 @@
 <title>Budget</title>
 
 <style>
-body {
-  margin:0;
-  font-family:-apple-system,BlinkMacSystemFont,sans-serif;
-  background:#121212;
-  color:#fff;
-}
-.container {
-  padding:16px;
-  max-width:420px;
-  margin:auto;
-}
-h1,h2 {
-  text-align:center;
-}
-input,select,button {
-  width:100%;
-  padding:10px;
-  margin-top:6px;
-  border-radius:6px;
-  border:none;
-  font-size:16px;
-}
-input,select {
-  background:#1e1e1e;
-  color:#fff;
-}
-button {
-  background:#2ecc71;
-  color:#000;
-  font-weight:bold;
-}
-.bill { color:#e74c3c; }
-.income { color:#2ecc71; }
-.calendar {
-  display:grid;
-  grid-template-columns:repeat(7,1fr);
-  gap:4px;
-  margin-top:10px;
-}
-.day {
-  background:#1e1e1e;
-  padding:6px;
-  min-height:60px;
-  font-size:12px;
-}
-.alert {
-  background:#333;
-  padding:8px;
-  border-left:4px solid #e74c3c;
-  margin-top:8px;
-}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:#121212;color:#fff}
+.container{padding:16px;max-width:420px;margin:auto}
+h1,h2,h3{text-align:center;margin:10px 0}
+button,input,select{width:100%;padding:10px;margin-top:6px;border-radius:6px;border:none;font-size:16px}
+button{background:#2ecc71;color:#000;font-weight:bold}
+input,select{background:#1e1e1e;color:#fff}
+.card{background:#1e1e1e;padding:10px;border-radius:6px;margin-top:6px}
+.row{display:flex;justify-content:space-between;align-items:center}
+.bill{color:#e74c3c}
+.income{color:#2ecc71}
+.alert{background:#1e1e1e;border-left:4px solid #f1c40f;padding:8px;margin-top:8px}
+.small{font-size:12px;opacity:.8}
+hr{border:none;border-top:1px solid #333;margin:16px 0}
 </style>
 </head>
 
 <body>
 <div class="container">
-<h1>Monthly Budget</h1>
 
-<h2>Monthly Income</h2>
-<input type="number" id="income">
+<h1>Dashboard</h1>
 
-<h2>Add Income</h2>
-<input id="incName" placeholder="Source">
-<input id="incAmount" type="number" placeholder="Amount">
-<input id="incDate" type="date">
-<button onclick="addIncome()">Add Income</button>
+<div id="dailyAlert"></div>
 
-<h2>Add Bill</h2>
-<input id="billName" placeholder="Bill">
-<input id="billAmount" type="number" placeholder="Amount">
-<input id="billDate" type="date">
-<button onclick="addBill()">Add Bill</button>
+<h2>Quick Expense</h2>
+<select id="qCat">
+  <option>Groceries</option>
+  <option>Gas</option>
+  <option>Misc</option>
+</select>
+<input id="qAmt" type="number" placeholder="Amount">
+<button onclick="quickExpense()">Add</button>
 
-<h2>Alerts</h2>
-<div id="alerts"></div>
+<hr>
 
-<h2>Calendar</h2>
-<div class="calendar" id="calendar"></div>
+<h2>Accounts</h2>
+<input id="accName" placeholder="Account name">
+<input id="accBal" type="number" placeholder="Starting balance">
+<button onclick="addAccount()">Add Account</button>
+<div id="accounts"></div>
 
-<button onclick="exportCalendar()">Export to iOS Calendar</button>
+<hr>
+
+<h2>Category Rules</h2>
+<input id="ruleKey" placeholder="Keyword (e.g. Walmart)">
+<select id="ruleCat">
+  <option>Groceries</option>
+  <option>Gas</option>
+  <option>Subscriptions</option>
+  <option>Misc</option>
+</select>
+<button onclick="addRule()">Add Rule</button>
+<div id="rules"></div>
+
+<hr>
+
+<h2>Import Bank CSV</h2>
+<input type="file" accept=".csv" onchange="importCSV(this.files[0])">
+
 </div>
 
 <script>
-let bills = JSON.parse(localStorage.getItem('bills'))||[];
-let incomes = JSON.parse(localStorage.getItem('incomes'))||[];
+const today=new Date().toISOString().slice(0,10)
 
-function addBill(){
-  bills.push({name:billName.value,amount:+billAmount.value,date:billDate.value});
-  localStorage.setItem('bills',JSON.stringify(bills));
-  render();
+let expenses=JSON.parse(localStorage.getItem('expenses'))||[]
+let accounts=JSON.parse(localStorage.getItem('accounts'))||[]
+let rules=JSON.parse(localStorage.getItem('rules'))||[]
+
+function quickExpense(){
+  if(!qAmt.value) return
+  expenses.push({amount:+qAmt.value,category:qCat.value,date:today})
+  localStorage.setItem('expenses',JSON.stringify(expenses))
+  qAmt.value=''
+  localStorage.setItem('lastEntry',today)
+  render()
 }
 
-function addIncome(){
-  incomes.push({name:incName.value,amount:+incAmount.value,date:incDate.value});
-  localStorage.setItem('incomes',JSON.stringify(incomes));
-  render();
+function addAccount(){
+  if(!accName.value||!accBal.value) return
+  accounts.push({name:accName.value,balance:+accBal.value})
+  localStorage.setItem('accounts',JSON.stringify(accounts))
+  accName.value=accBal.value=''
+  render()
+}
+
+function addRule(){
+  if(!ruleKey.value) return
+  rules.push({key:ruleKey.value.toLowerCase(),cat:ruleCat.value})
+  localStorage.setItem('rules',JSON.stringify(rules))
+  ruleKey.value=''
+  render()
+}
+
+function importCSV(file){
+  const reader=new FileReader()
+  reader.onload=e=>{
+    const lines=e.target.result.split('\n')
+    lines.slice(1).forEach(l=>{
+      const cols=l.split(',')
+      if(cols.length<3) return
+      const desc=cols[1].toLowerCase()
+      const amt=Math.abs(Number(cols[2]))
+      let cat='Misc'
+      rules.forEach(r=>{if(desc.includes(r.key)) cat=r.cat})
+      expenses.push({amount:amt,category:cat,date:cols[0]})
+    })
+    localStorage.setItem('expenses',JSON.stringify(expenses))
+    render()
+  }
+  reader.readAsText(file)
 }
 
 function render(){
-  const cal=document.getElementById('calendar');
-  const alerts=document.getElementById('alerts');
-  cal.innerHTML='';
-  alerts.innerHTML='';
+  // Daily reminder
+  const last=localStorage.getItem('lastEntry')
+  dailyAlert.innerHTML= last!==today
+    ? `<div class="alert">You haven’t logged spending today</div>`:'';
 
-  const now=new Date();
-  const year=now.getFullYear();
-  const month=now.getMonth();
-  const first=new Date(year,month,1);
-  const start=first.getDay();
-  const days=new Date(year,month+1,0).getDate();
+  // Accounts
+  accountsDiv.innerHTML=''
+  accounts.forEach(a=>{
+    const spent=expenses.reduce((t,e)=>t+e.amount,0)
+    accountsDiv.innerHTML+=`
+      <div class="card row">
+        <span>${a.name}</span>
+        <strong>$${(a.balance-spent).toFixed(2)}</strong>
+      </div>`
+  })
 
-  for(let i=0;i<start;i++) cal.innerHTML+='<div></div>';
-
-  for(let d=1;d<=days;d++){
-    const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    let html=`<div class="day"><strong>${d}</strong>`;
-    bills.filter(b=>b.date===dateStr).forEach(b=>{
-      html+=`<div class="bill">${b.name}</div>`;
-      if((new Date(b.date)-now)/(86400000)<=3){
-        alerts.innerHTML+=`<div class="alert">Bill due soon: ${b.name}</div>`;
-      }
-    });
-    incomes.filter(i=>i.date===dateStr).forEach(i=>{
-      html+=`<div class="income">${i.name}</div>`;
-    });
-    html+='</div>';
-    cal.innerHTML+=html;
-  }
+  // Rules
+  rulesDiv.innerHTML=''
+  rules.forEach(r=>{
+    rulesDiv.innerHTML+=`<div class="small">${r.key} → ${r.cat}</div>`
+  })
 }
 
-function exportCalendar(){
-  let ics='BEGIN:VCALENDAR\nVERSION:2.0\n';
-  [...bills.map(b=>({...b,type:'Bill'})),...incomes.map(i=>({...i,type:'Income'}))]
-    .forEach(e=>{
-      ics+=`BEGIN:VEVENT\nSUMMARY:${e.type}: ${e.name}\nDTSTART:${e.date.replace(/-/g,'')}T090000\nEND:VEVENT\n`;
-    });
-  ics+='END:VCALENDAR';
-  const blob=new Blob([ics],{type:'text/calendar'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download='budget.ics';
-  a.click();
-}
+const accountsDiv=document.getElementById('accounts')
+const rulesDiv=document.getElementById('rules')
 
-document.getElementById('income').value=localStorage.getItem('income')||0;
-render();
+render()
 </script>
 </body>
 </html>
